@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="Falcon Timer"/>
+  <meta name="theme-color" content="#0a0a0a"/>
+  <title>Falcon Timer 🦅</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{background:#0a0a0a;color:#e0e0e0;font-family:'Courier New',monospace;min-height:100dvh}
+    #app{display:flex;flex-direction:column;align-items:center;padding:14px 14px 40px;gap:12px;min-height:100dvh}
+    .screen{display:none;flex-direction:column;align-items:center;gap:12px;width:100%}
+    .screen.active{display:flex}
+    .w{width:100%;max-width:390px}
+    .hero{text-align:center;padding-top:6px}
+    .hero-icon{font-size:52px;line-height:1;margin-bottom:6px}
+    .hero-title{font-size:34px;font-weight:900;letter-spacing:7px;color:#f0c040;text-transform:uppercase;line-height:1.1;margin-bottom:4px}
+    .hero-sub{font-size:10px;color:#2a2a2a;letter-spacing:3px}
+    .rbtn{background:#0d0d0d;border:2px solid #1e1e1e;border-radius:14px;padding:20px 16px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;width:100%;color:#e0e0e0;font-family:'Courier New',monospace;margin-bottom:10px}
+    .rbtn:active{opacity:.7}
+    .rbtn .ico{font-size:30px}
+    .rbtn .ttl{font-size:20px;font-weight:900;letter-spacing:3px}
+    .rbtn .sub{font-size:11px;color:#444}
+    .rbtn.s{border-color:#1e6b3a}
+    .rbtn.f{border-color:#1e3a6b}
+    .card{background:#0d0d0d;border:1px solid #1e1e1e;border-radius:14px;padding:18px 16px;display:flex;flex-direction:column;gap:12px}
+    .clbl{color:#555;font-size:12px;text-align:center;letter-spacing:1px}
+    .chint{color:#2a2a2a;font-size:11px;text-align:center;line-height:1.7}
+    .bigcode{background:#000;border:2px solid #f0c040;border-radius:10px;padding:16px;font-size:36px;font-weight:900;text-align:center;letter-spacing:10px;color:#f0c040;font-family:'Courier New',monospace}
+    .codein{background:#000;border:2px solid #222;border-radius:10px;padding:14px;font-size:28px;font-weight:700;text-align:center;letter-spacing:8px;color:#fff;width:100%;outline:none;font-family:'Courier New',monospace}
+    .btn{padding:15px;border:none;border-radius:12px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:1px;width:100%;font-family:'Courier New',monospace}
+    .btn:active{opacity:.75}
+    .btn.green{background:#1a5c32}
+    .btn.blue{background:#1a3260}
+    .btn.gray{background:#181818;border:1px solid #2a2a2a}
+    .topbar{width:100%;max-width:390px;display:flex;justify-content:space-between;align-items:center}
+    .badge{font-size:11px;font-weight:700;letter-spacing:2px;padding:5px 11px;border-radius:6px}
+    .bg{color:#00ff88;background:#001a0a}
+    .bb{color:#4488ff;background:#00081a}
+    .cbar{background:#080808;border:1px solid #141414;border-radius:8px;padding:9px 13px;display:flex;align-items:center;gap:9px}
+    .dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;transition:background .3s}
+    .dot.off{background:#222}
+    .dot.wait{background:#ffaa00;animation:bl 1s infinite}
+    .dot.on{background:#00ff88}
+    @keyframes bl{0%,100%{opacity:1}50%{opacity:.2}}
+    .ctxt{font-size:12px;color:#555}
+    .gcard{background:#060e06;border:2px solid #141e14;border-radius:12px;padding:13px 15px;transition:border-color .4s}
+    .grow{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+    .glbl{font-size:9px;color:#2a2a2a;letter-spacing:3px;margin-bottom:3px}
+    .gval{font-size:38px;font-weight:900;margin-bottom:3px;color:#222;transition:color .3s}
+    .ghint{font-size:11px;color:#2a2a2a;transition:color .3s}
+    .gbox{text-align:right;font-size:9px;color:#1e1e1e;line-height:1.9;flex-shrink:0}
+    .gst{font-size:10px;margin-bottom:2px;color:#333}
+    .camwrap{position:relative;background:#060606;border-radius:12px;overflow:hidden;border:2px solid #181818}
+    #video{width:100%;display:block;max-height:200px;object-fit:cover}
+    #canvas{display:none}
+    .xhair{position:absolute;top:0;bottom:0;left:50%;width:2px;background:rgba(240,192,64,.5);pointer-events:none}
+    .zone{position:absolute;top:20%;bottom:20%;left:20%;right:20%;border:1px dashed rgba(240,192,64,.3);border-radius:4px;pointer-events:none}
+    .clabel{position:absolute;top:8px;left:8px;background:rgba(0,0,0,.85);padding:3px 9px;border-radius:6px;font-size:11px;font-weight:700;letter-spacing:1px}
+    .armedlbl{position:absolute;top:8px;right:8px;background:rgba(180,40,0,.9);color:#ff7744;padding:4px 9px;border-radius:6px;font-size:10px;font-weight:700;letter-spacing:2px;display:none}
+    .mwrap{position:absolute;bottom:0;left:0;right:0;height:6px;background:#0a0a0a}
+    .mbar{height:100%;width:0%;background:#00ff88;transition:width .04s,background .08s}
+    .mpct{position:absolute;bottom:9px;right:9px;font-size:12px;color:rgba(255,255,255,.6);font-weight:700}
+    .srow{display:flex;align-items:center;gap:8px;background:#080808;border:1px solid #141414;border-radius:8px;padding:9px 13px}
+    .slbl{color:#2a2a2a;font-size:10px;letter-spacing:1px;white-space:nowrap}
+    .sval{color:#666;font-size:12px;min-width:22px;text-align:right;font-weight:700}
+    #sens{flex:1;accent-color:#f0c040}
+    .armbtn{padding:20px;border:none;border-radius:14px;color:#fff;font-size:18px;font-weight:900;cursor:pointer;width:100%;font-family:'Courier New',monospace;letter-spacing:2px;background:linear-gradient(135deg,#7a2000,#3a0e00);border:2px solid #cc4400}
+    .armbtn:active{opacity:.8}
+    .tcard{background:#0a0a0a;border:2px solid #181818;border-radius:14px;padding:16px;text-align:center;transition:border-color .3s,background .3s}
+    .tlbl{font-size:11px;letter-spacing:4px;margin-bottom:4px;color:#444}
+    .tval{font-size:54px;font-weight:900;line-height:1;color:#222}
+    .tunit{font-size:20px;font-weight:400;margin-left:2px}
+    .tsub{font-size:12px;color:#444;margin-top:7px}
+    .rcard{background:#060606;border:1px solid #141414;border-radius:12px;padding:13px 15px}
+    .rhdr{font-size:10px;color:#2a2a2a;letter-spacing:3px;margin-bottom:9px;display:flex;justify-content:space-between;align-items:center}
+    .rclear{font-size:10px;cursor:pointer;background:none;border:none;font-family:'Courier New',monospace;color:#222;padding:2px 6px}
+    .rclear:active{color:#ff4444}
+    .ri{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #0e0e0e}
+    .ri:last-child{border-bottom:none}
+    .rname{font-size:12px;color:#555}
+    .rdist{font-size:10px;color:#2a2a2a}
+    .rtime{font-size:20px;font-weight:900;color:#f0c040}
+    .rempty{font-size:11px;color:#1e1e1e;text-align:center;padding:8px 0}
+    .logbox{background:#040404;border:1px solid #0e0e0e;border-radius:8px;padding:8px 10px;max-height:80px;overflow-y:auto}
+    .ll{font-size:10px;color:#1a1a1a;margin-bottom:1px}
+    .ll.n{color:#3a3a3a}
+    .namein{background:#000;border:1px solid #1a1a1a;border-radius:8px;padding:11px 13px;font-size:14px;color:#aaa;width:100%;max-width:390px;outline:none;font-family:'Courier New',monospace}
+    .namein::placeholder{color:#1e1e1e}
+    .infobox{background:#080808;border:1px solid #141414;border-radius:10px;padding:12px 14px;font-size:11px;color:#2a2a2a;line-height:1.9;text-align:center}
+    .infobox b{color:#555}
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ROLE SELECT -->
+  <div id="s-role" class="screen active">
+    <div class="hero">
+      <div class="hero-icon">🦅</div>
+      <h1 class="hero-title">FALCON<br>TIMER</h1>
+      <p class="hero-sub">MOTION DETECTION · GPS · TIMING</p>
+    </div>
+    <div class="w">
+      <p style="text-align:center;color:#444;font-size:13px;margin-bottom:10px;letter-spacing:1px">Which phone is this?</p>
+      <button class="rbtn s" onclick="go('start')">
+        <span class="ico">🟢</span>
+        <span class="ttl">START LINE</span>
+        <span class="sub">Phone at beginning of race</span>
+      </button>
+      <button class="rbtn f" onclick="go('finish')">
+        <span class="ico">🏁</span>
+        <span class="ttl">FINISH LINE</span>
+        <span class="sub">Phone at end of race</span>
+      </button>
+    </div>
+    <div class="infobox w">
+      <b>How it works:</b><br>
+      Place phone sideways to the flight path.<br>
+      Falcon crosses camera → timer starts/stops.<br>
+      Both phones sync instantly over internet.
+    </div>
+  </div>
+
+  <!-- WAIT START -->
+  <div id="s-ws" class="screen">
+    <div class="topbar w"><span class="badge bg">🟢 START PHONE</span></div>
+    <div class="card w">
+      <p class="clbl">Share this code with the FINISH phone:</p>
+      <div class="bigcode" id="codebox">------</div>
+      <div class="cbar">
+        <div class="dot wait" id="dot-ws"></div>
+        <span class="ctxt" id="txt-ws">Waiting for finish phone...</span>
+      </div>
+      <p class="chint">Open this app on finish phone → tap <b>FINISH LINE</b> → enter code → tap Connect.<br><br>When finish phone connects the dot turns green.</p>
+      <button class="btn green" onclick="startReady()">✅ Open Camera &amp; GPS</button>
+    </div>
+    <div class="logbox w" id="log-ws"></div>
+  </div>
+
+  <!-- WAIT FINISH -->
+  <div id="s-wf" class="screen">
+    <div class="topbar w"><span class="badge bb">🏁 FINISH PHONE</span></div>
+    <div class="card w">
+      <p class="clbl">Enter the code from the START phone:</p>
+      <input class="codein" id="codein" placeholder="X7K2P1" maxlength="8"
+        oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')"/>
+      <button class="btn blue" onclick="finishJoin()">🔗 Connect &amp; Open Camera</button>
+    </div>
+    <div class="logbox w" id="log-wf"></div>
+  </div>
+
+  <!-- RACE -->
+  <div id="s-race" class="screen">
+    <div class="topbar w">
+      <span class="badge" id="rbadge">🟢 START</span>
+      <span style="font-size:10px;color:#1e1e1e" id="rsess"></span>
+    </div>
+    <div class="cbar w">
+      <div class="dot wait" id="rdot"></div>
+      <span class="ctxt" id="rctxt">Connecting...</span>
+    </div>
+    <div class="gcard w" id="gcard">
+      <div class="grow">
+        <div>
+          <p class="glbl">📍 DISTANCE</p>
+          <p class="gval" id="gval">---</p>
+          <p class="ghint" id="ghint">Waiting for GPS on both phones...</p>
+        </div>
+        <div class="gbox">
+          <div class="gst" id="gst">○ GPS Off</div>
+          <div id="gacc"></div>
+          <div id="gme">Me: ---</div>
+          <div id="gpeer">Peer: ---</div>
+        </div>
+      </div>
+    </div>
+    <input class="namein" id="fname" placeholder="🦅 Falcon name (e.g. Thunder)" maxlength="30"/>
+    <div class="camwrap w">
+      <video id="video" playsinline muted></video>
+      <canvas id="canvas"></canvas>
+      <div class="xhair"></div>
+      <div class="zone"></div>
+      <div class="clabel" id="clabel">🟢 START</div>
+      <div class="armedlbl" id="armedlbl">● ARMED</div>
+      <div class="mwrap"><div class="mbar" id="mbar"></div></div>
+      <div class="mpct" id="mpct">0%</div>
+    </div>
+    <div class="srow w">
+      <span class="slbl">Sensitivity</span>
+      <input type="range" id="sens" min="3" max="40" value="10"
+        oninput="document.getElementById('sv').textContent=this.value"/>
+      <span class="sval" id="sv">10</span>
+    </div>
+    <button class="armbtn w" id="btnArm" onclick="arm()">🎯 ARM — Watch for Falcon</button>
+    <div class="tcard w" id="tcard">
+      <p class="tlbl" id="tlbl">READY</p>
+      <p class="tval" id="tval">—</p>
+      <p class="tsub" id="tsub"></p>
+    </div>
+    <button class="btn gray w" id="btnReset" onclick="resetRace()" style="display:none">🔄 Next Race</button>
+    <div class="rcard w">
+      <div class="rhdr">
+        <span>🦅 RACE RESULTS</span>
+        <button class="rclear" onclick="clearAll()">CLEAR ALL</button>
+      </div>
+      <div id="rlist"><p class="rempty">No races yet</p></div>
+    </div>
+    <div class="logbox w" id="log-race"></div>
+  </div>
+
+</div>
+<script>
+// ═══════════════════════════════════════════════════════
+// SUPABASE CONFIG — your real project
+// ═══════════════════════════════════════════════════════
+const SUPABASE_URL = 'https://ygxkcyowwbwdgkghbplv.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_ZfoS4DP2Gf_gxo3YmNwzcg_hdE-bgpf';
+
+// ═══════════════════════════════════════════════════════
+// We use Supabase Realtime — it's a WebSocket channel
+// built into Supabase. No server needed. Works globally.
+// ═══════════════════════════════════════════════════════
+let supabase = null;
+let realtimeChannel = null;
+
+let role, code, status = 'idle';
+let myLoc = null, peerLoc = null;
+let t0 = null, timerInt = null, prevFrame = null;
+let armed = false, camOk = false;
+let results = [], raceN = 0, actx = null;
+
+// ── Load Supabase SDK ────────────────────────────────
+function loadSupabase(cb) {
+  const s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
+  s.onload = () => {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    log('📡 Supabase loaded');
+    cb();
+  };
+  s.onerror = () => log('❌ Failed to load Supabase — check internet');
+  document.head.appendChild(s);
+}
+
+// ── Connect to realtime channel ──────────────────────
+function connectChannel(room, onReady) {
+  loadSupabase(() => {
+    realtimeChannel = supabase.channel('falcon-' + room, {
+      config: { broadcast: { self: false } }
+    });
+
+    realtimeChannel
+      .on('broadcast', { event: 'msg' }, ({ payload }) => {
+        onMsg(payload);
+      })
+      .subscribe((state) => {
+        log('📡 Channel state: ' + state);
+        if (state === 'SUBSCRIBED') {
+          setConn(true, '✅ Connected to network');
+          onReady();
+        } else if (state === 'CHANNEL_ERROR') {
+          setConn(false, '❌ Connection error');
+          log('❌ Channel error — retrying...');
+          setTimeout(() => connectChannel(room, onReady), 3000);
+        } else if (state === 'CLOSED') {
+          setConn(false, 'Reconnecting...');
+          setTimeout(() => connectChannel(room, onReady), 2000);
+        }
+      });
+  });
+}
+
+// ── Send message ─────────────────────────────────────
+function send(type, data = {}) {
+  if (!realtimeChannel) return;
+  realtimeChannel.send({
+    type: 'broadcast',
+    event: 'msg',
+    payload: { type, from: role, ts: Date.now(), ...data }
+  });
+}
+
+// ── Receive message ──────────────────────────────────
+function onMsg(m) {
+  if (m.from === role) return; // ignore own messages
+
+  if (m.type === 'HELLO') {
+    setConn(true, '✅ Both phones connected!');
+    setStatus('ready');
+    log('✅ Other phone connected!');
+    send('HELLO_ACK');
+    return;
+  }
+  if (m.type === 'HELLO_ACK') {
+    setConn(true, '✅ Both phones connected!');
+    setStatus('ready');
+    log('✅ Both phones connected!');
+    return;
+  }
+  if (m.type === 'GPS') {
+    peerLoc = { lat: m.lat, lon: m.lon };
+    document.getElementById('gpeer').textContent = 'Peer: ' + m.lat.toFixed(5);
+    updateDist();
+    return;
+  }
+  if (m.type === 'START' && role === 'finish') {
+    t0 = m.ts;
+    setStatus('racing');
+    armed = true;
+    startTimer();
+    sndStart();
+    log('⚡ FALCON PASSED START — watching finish!');
+    return;
+  }
+  if (m.type === 'FINISH' && role === 'start') {
+    const t = m.ts - t0;
+    addResult(m.name || 'Falcon', t);
+    setStatus('finished', t);
+    sndFinish();
+    log('🏆 ' + (m.name || 'Falcon') + ': ' + fmt(t) + 's');
+    return;
+  }
+  if (m.type === 'RESET') doReset();
+}
+
+// ═══════════════════════════════════════════════════════
+// SOUNDS
+// ═══════════════════════════════════════════════════════
+function ac() {
+  if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+  actx.resume(); return actx;
+}
+function beep(f, d, v = 0.5) {
+  try {
+    const c = ac(), o = c.createOscillator(), g = c.createGain();
+    o.connect(g); g.connect(c.destination);
+    o.frequency.value = f;
+    g.gain.setValueAtTime(v, c.currentTime);
+    g.gain.exponentialRampToValueAtTime(.001, c.currentTime + d);
+    o.start(); o.stop(c.currentTime + d);
+  } catch (e) {}
+}
+function sndArm()    { beep(660, .08); setTimeout(() => beep(880, .12), 120); }
+function sndStart()  { [440, 660, 880].forEach((f, i) => setTimeout(() => beep(f, .15), i * 100)); }
+function sndFinish() { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => beep(f, .22), i * 120)); }
+
+// ═══════════════════════════════════════════════════════
+// GPS
+// ═══════════════════════════════════════════════════════
+function startGPS() {
+  if (!navigator.geolocation) { gpsUI('err'); return; }
+  gpsUI('acq'); log('📡 Getting GPS...');
+  navigator.geolocation.watchPosition(p => {
+    myLoc = { lat: p.coords.latitude, lon: p.coords.longitude };
+    const acc = Math.round(p.coords.accuracy);
+    gpsUI('ok', acc);
+    document.getElementById('gme').textContent = 'Me: ' + myLoc.lat.toFixed(5);
+    updateDist();
+    send('GPS', { lat: myLoc.lat, lon: myLoc.lon });
+  }, e => {
+    gpsUI('err');
+    log('⚠️ GPS denied — go to Safari Settings → allow Location');
+  }, { enableHighAccuracy: true, maximumAge: 3000, timeout: 20000 });
+}
+
+function gpsUI(s, acc) {
+  const el = document.getElementById('gst');
+  if (s === 'ok') { el.textContent = '🛰 GPS Active'; el.style.color = '#00ff88'; if (acc) document.getElementById('gacc').textContent = '±' + acc + 'm'; }
+  else if (s === 'acq') { el.textContent = '⏳ Acquiring...'; el.style.color = '#ffaa00'; }
+  else { el.textContent = '❌ GPS Error'; el.style.color = '#ff4444'; }
+}
+
+function hav(a, b, c, d) {
+  const R = 6371000, r = x => x * Math.PI / 180;
+  const x = Math.sin(r(c - a) / 2) ** 2 + Math.cos(r(a)) * Math.cos(r(c)) * Math.sin(r(d - b) / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+}
+
+function updateDist() {
+  if (!myLoc || !peerLoc) return;
+  const d = hav(myLoc.lat, myLoc.lon, peerLoc.lat, peerLoc.lon);
+  const n = Math.round(d / 50) * 50, diff = Math.round(d - n), ad = Math.abs(diff);
+  const col = ad <= 8 ? '#00ff88' : ad <= 25 ? '#ffaa00' : '#ff6644';
+  const hint = ad <= 8 ? '✅ Perfect — approx ' + n + 'm' : diff > 0 ? 'Move finish ' + diff + 'm closer ←' : 'Move finish ' + ad + 'm further →';
+  const str = d >= 1000 ? (d / 1000).toFixed(2) + ' km' : d.toFixed(1) + ' m';
+  document.getElementById('gcard').style.borderColor = col;
+  const v = document.getElementById('gval'); v.textContent = str; v.style.color = col;
+  const h = document.getElementById('ghint'); h.textContent = hint; h.style.color = col;
+}
+
+// ═══════════════════════════════════════════════════════
+// CAMERA & MOTION DETECTION
+// ═══════════════════════════════════════════════════════
+async function startCam() {
+  if (camOk) return;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 60 } },
+      audio: false
+    });
+    const v = document.getElementById('video');
+    v.srcObject = stream; await v.play();
+    camOk = true; log('📷 Camera ready — wave hand to test motion %');
+    motionLoop();
+  } catch (e) {
+    log('❌ Camera: ' + e.message + ' — allow Camera in Safari Settings');
+  }
+}
+
+function motionLoop() {
+  const v = document.getElementById('video');
+  const cv = document.getElementById('canvas');
+  const ctx = cv.getContext('2d', { willReadFrequently: true });
+  cv.width = 320; cv.height = 240;
+  let cool = 0;
+
+  function loop() {
+    if (v.readyState >= 2) {
+      ctx.drawImage(v, 0, 0, 320, 240);
+      const f = ctx.getImageData(0, 0, 320, 240);
+
+      if (prevFrame) {
+        const s = parseInt(document.getElementById('sens').value);
+        let ch = 0, tot = 0;
+        // Check center zone only
+        for (let y = 48; y < 192; y++) {
+          for (let x = 64; x < 256; x++) {
+            const i = (y * 320 + x) * 4;
+            if (
+              Math.abs(f.data[i]   - prevFrame[i])   +
+              Math.abs(f.data[i+1] - prevFrame[i+1]) +
+              Math.abs(f.data[i+2] - prevFrame[i+2]) > s
+            ) ch++;
+            tot++;
+          }
+        }
+
+        const pct = Math.min(100, Math.round(ch / tot * 100 * 5));
+        const bar = document.getElementById('mbar');
+        bar.style.width = pct + '%';
+        bar.style.background = pct > 40 ? '#ff4444' : pct > 12 ? '#ffaa00' : '#00ff88';
+        document.getElementById('mpct').textContent = pct + '%';
+
+        // TRIGGER
+        if (armed && cool <= 0 && pct > 15) {
+          cool = 50;
+          const ts = Date.now();
+          if (role === 'start' && status === 'ready') {
+            t0 = ts; armed = false;
+            setStatus('racing'); startTimer(); sndStart();
+            send('START', { ts });
+            document.getElementById('armedlbl').style.display = 'none';
+            log('🚀 FALCON DETECTED at start!');
+          } else if (role === 'finish' && status === 'racing') {
+            const t = ts - t0;
+            const name = document.getElementById('fname').value.trim() || 'Falcon ' + (raceN + 1);
+            armed = false;
+            setStatus('finished', t); sndFinish();
+            send('FINISH', { ts, name });
+            addResult(name, t);
+            document.getElementById('armedlbl').style.display = 'none';
+            log('🏁 FINISH — ' + fmt(t) + 's');
+          }
+        }
+        if (cool > 0) cool--;
+      }
+      prevFrame = f.data.slice();
+    }
+    requestAnimationFrame(loop);
+  }
+  loop();
+}
+
+// ═══════════════════════════════════════════════════════
+// TIMER
+// ═══════════════════════════════════════════════════════
+function startTimer() {
+  clearInterval(timerInt);
+  timerInt = setInterval(() => {
+    if (t0) document.getElementById('tval').textContent = fmt(Date.now() - t0);
+  }, 50);
+}
+function stopTimer() { clearInterval(timerInt); }
+function fmt(ms) { return Math.floor(ms / 1000) + '.' + String(ms % 1000).padStart(3, '0'); }
+
+// ═══════════════════════════════════════════════════════
+// STATUS UI
+// ═══════════════════════════════════════════════════════
+function setStatus(s, ms) {
+  status = s;
+  const c = document.getElementById('tcard'), l = document.getElementById('tlbl');
+  const v = document.getElementById('tval'), sb = document.getElementById('tsub');
+  const ba = document.getElementById('btnArm'), br = document.getElementById('btnReset');
+
+  if (s === 'ready') {
+    c.style.cssText = 'background:#0a0a0a;border:2px solid #181818;border-radius:14px;padding:16px;text-align:center';
+    l.style.color = '#444'; l.textContent = 'READY';
+    v.style.color = '#222'; v.textContent = '—'; sb.textContent = '';
+    ba.style.display = 'block'; br.style.display = 'none'; stopTimer();
+  } else if (s === 'racing') {
+    c.style.cssText = 'background:#001a0a;border:2px solid #00ff88;border-radius:14px;padding:16px;text-align:center';
+    l.style.color = '#00ff88'; l.textContent = '⚡ RACING';
+    v.style.color = '#00ff88'; v.textContent = '0.000'; sb.textContent = '';
+    ba.style.display = 'none'; br.style.display = 'none';
+  } else if (s === 'finished') {
+    stopTimer();
+    c.style.cssText = 'background:#0f0a00;border:2px solid #f0c040;border-radius:14px;padding:16px;text-align:center';
+    l.style.color = '#f0c040'; l.textContent = '🏆 RACE TIME';
+    v.style.color = '#f0c040';
+    v.innerHTML = fmt(ms) + '<span style="font-size:20px;font-weight:400">s</span>';
+    if (myLoc && peerLoc) {
+      const d = hav(myLoc.lat, myLoc.lon, peerLoc.lat, peerLoc.lon);
+      sb.textContent = '📍 ' + (d >= 1000 ? (d / 1000).toFixed(2) + ' km' : d.toFixed(1) + ' m');
+    }
+    ba.style.display = 'none'; br.style.display = 'block';
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// RESULTS
+// ═══════════════════════════════════════════════════════
+function addResult(name, ms) {
+  raceN++;
+  const dist = (myLoc && peerLoc) ? hav(myLoc.lat, myLoc.lon, peerLoc.lat, peerLoc.lon) : null;
+  results.unshift({ name, ms, dist });
+  renderList();
+}
+function renderList() {
+  const el = document.getElementById('rlist');
+  if (!results.length) { el.innerHTML = '<p class="rempty">No races yet</p>'; return; }
+  el.innerHTML = results.map((r, i) => `
+    <div class="ri">
+      <div>
+        <div class="rname">#${results.length - i} ${r.name}</div>
+        ${r.dist ? `<div class="rdist">📍 ${r.dist >= 1000 ? (r.dist / 1000).toFixed(2) + ' km' : r.dist.toFixed(1) + ' m'}</div>` : ''}
+      </div>
+      <div class="rtime">${fmt(r.ms)}s</div>
+    </div>`).join('');
+}
+function clearAll() { results = []; raceN = 0; renderList(); }
+
+// ═══════════════════════════════════════════════════════
+// CONNECTION UI
+// ═══════════════════════════════════════════════════════
+function setConn(ok, txt) {
+  ['rdot', 'dot-ws'].forEach(id => {
+    const d = document.getElementById(id);
+    if (d) d.className = 'dot ' + (ok ? 'on' : 'wait');
+  });
+  ['rctxt', 'txt-ws'].forEach(id => {
+    const t = document.getElementById(id);
+    if (t) { t.textContent = txt; t.style.color = ok ? '#00ff88' : '#ffaa00'; }
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// LOG
+// ═══════════════════════════════════════════════════════
+function log(msg, box) {
+  const el = document.getElementById(box || 'log-race');
+  if (!el) return;
+  const d = document.createElement('div');
+  d.className = 'll n';
+  d.textContent = new Date().toLocaleTimeString() + ': ' + msg;
+  el.insertBefore(d, el.firstChild);
+  el.querySelectorAll('.ll.n').forEach((l, i) => { if (i > 0) l.classList.remove('n'); });
+  while (el.children.length > 12) el.removeChild(el.lastChild);
+}
+
+// ═══════════════════════════════════════════════════════
+// ACTIONS
+// ═══════════════════════════════════════════════════════
+function go(r) {
+  role = r;
+  try { ac(); } catch (e) {} // unlock audio on first tap
+  if (r === 'start') {
+    code = Math.random().toString(36).substr(2, 6).toUpperCase();
+    document.getElementById('codebox').textContent = code;
+    show('s-ws');
+    log('🟢 Code: ' + code, 'log-ws');
+    connectChannel(code, () => {
+      log('📡 Waiting for finish phone...', 'log-ws');
+    });
+  } else {
+    show('s-wf');
+  }
+}
+
+function startReady() {
+  setupUI('start');
+  startCam();
+  startGPS();
+  setStatus('ready');
+}
+
+function finishJoin() {
+  code = document.getElementById('codein').value.trim().toUpperCase();
+  if (code.length < 4) { alert('Enter the code from the start phone'); return; }
+  log('🔗 Joining session ' + code, 'log-wf');
+  connectChannel(code, () => {
+    setupUI('finish');
+    startCam();
+    startGPS();
+    setStatus('ready');
+    // Say hello to start phone
+    setTimeout(() => send('HELLO'), 500);
+  });
+}
+
+function setupUI(r) {
+  show('s-race');
+  const s = r === 'start';
+  document.getElementById('rbadge').textContent = s ? '🟢 START' : '🏁 FINISH';
+  document.getElementById('rbadge').className = 'badge ' + (s ? 'bg' : 'bb');
+  document.getElementById('clabel').textContent = s ? '🟢 START' : '🏁 FINISH';
+  document.getElementById('rsess').textContent = 'SESSION: ' + code;
+}
+
+function arm() {
+  armed = true;
+  document.getElementById('armedlbl').style.display = 'block';
+  document.getElementById('btnArm').style.display = 'none';
+  sndArm();
+  log('🎯 ARMED — watching for falcon...');
+  log('📐 Point phone SIDEWAYS so falcon crosses the frame');
+}
+
+function doReset() {
+  armed = false; t0 = null; prevFrame = null;
+  stopTimer();
+  document.getElementById('armedlbl').style.display = 'none';
+  setStatus('ready');
+  log('🔄 Ready for next race');
+}
+
+function resetRace() { doReset(); send('RESET'); }
+
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+</script>
+</body>
+</html>
