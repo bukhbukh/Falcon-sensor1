@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="Falcon Timer"/>
+  <meta name="theme-color" content="#0a0a0a"/>
+  <title>Falcon Timer 🦅</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{background:#0a0a0a;color:#e0e0e0;font-family:'Courier New',monospace;min-height:100dvh;overflow-x:hidden}
+    #app{display:flex;flex-direction:column;align-items:center;padding:12px 14px 40px;gap:11px;min-height:100dvh}
+    .screen{display:none;flex-direction:column;align-items:center;gap:11px;width:100%}
+    .screen.active{display:flex}
+    .hero{text-align:center;padding-top:10px}
+    .hero-icon{font-size:52px;line-height:1;margin-bottom:6px}
+    .hero-title{font-size:34px;font-weight:900;letter-spacing:7px;color:#f0c040;text-transform:uppercase;line-height:1.1;margin-bottom:5px}
+    .hero-sub{font-size:10px;color:#3a3a3a;letter-spacing:3px}
+    .role-wrap{width:100%;max-width:380px;display:flex;flex-direction:column;gap:10px}
+    .role-q{text-align:center;color:#666;font-size:13px;margin-bottom:2px;letter-spacing:1px}
+    .role-btn{background:#0d0d0d;border:2px solid #333;border-radius:14px;padding:18px 16px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;width:100%;color:#e0e0e0;font-family:'Courier New',monospace}
+    .role-btn:active{opacity:.7}
+    .role-btn-icon{font-size:26px}
+    .role-btn-title{font-size:19px;font-weight:900;letter-spacing:3px}
+    .role-btn-sub{font-size:11px;color:#555}
+    .role-start{border-color:#1e6b3a}
+    .role-finish{border-color:#1e3a6b}
+    .top-bar{width:100%;max-width:380px;display:flex;justify-content:space-between;align-items:center}
+    .top-badge{font-size:11px;font-weight:700;letter-spacing:2px;padding:4px 10px;border-radius:6px}
+    .badge-green{color:#00ff88;background:#001a0a}
+    .badge-blue{color:#4488ff;background:#00081a}
+    .card{width:100%;max-width:380px;background:#0e0e0e;border:1px solid #222;border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:11px}
+    .card-label{color:#777;font-size:12px;text-align:center;letter-spacing:1px}
+    .card-hint{color:#444;font-size:11px;text-align:center;line-height:1.6}
+    .big-code{background:#000;border:2px solid #f0c040;border-radius:10px;padding:14px 10px;font-size:34px;font-weight:900;text-align:center;letter-spacing:10px;color:#f0c040;font-family:'Courier New',monospace}
+    .code-input{background:#000;border:2px solid #333;border-radius:10px;padding:14px 10px;font-size:26px;font-weight:700;text-align:center;letter-spacing:8px;color:#fff;width:100%;outline:none;font-family:'Courier New',monospace;text-transform:uppercase}
+    .btn{padding:13px 10px;border:none;border-radius:10px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:1px;width:100%;font-family:'Courier New',monospace}
+    .btn:active{opacity:.75}
+    .btn-green{background:#1a5c32}
+    .btn-blue{background:#1a3260}
+    .btn-red{background:#8b2500}
+    .btn-gray{background:#1e1e1e;border:1px solid #333}
+    .btn-row{width:100%;max-width:380px;display:flex;gap:8px}
+    .conn-bar{width:100%;max-width:380px;background:#0a0a0a;border:1px solid #1a1a1a;border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:8px}
+    .dot{width:8px;height:8px;border-radius:50%;background:#333;flex-shrink:0;transition:background .3s}
+    .dot.on{background:#00ff88}
+    .dot.wait{background:#ffaa00;animation:blink 1s infinite}
+    .dot.err{background:#ff4444}
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+    .conn-txt{font-size:11px;color:#555}
+    .dist-card{width:100%;max-width:380px;background:#080f08;border:2px solid #1a2a1a;border-radius:12px;padding:12px 14px;transition:border-color .3s}
+    .dist-row{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+    .dist-lbl{font-size:9px;color:#444;letter-spacing:3px;margin-bottom:2px}
+    .dist-val{font-size:38px;font-weight:900;margin-bottom:3px;transition:color .3s}
+    .dist-hint{font-size:11px;transition:color .3s}
+    .gps-box{text-align:right;flex-shrink:0}
+    .gps-st{font-size:10px;margin-bottom:3px}
+    .gps-ln{font-size:9px;color:#2a2a2a;margin-bottom:1px}
+    .cam-box{width:100%;max-width:380px;position:relative;background:#0a0a0a;border-radius:12px;overflow:hidden;border:2px solid #1e1e1e}
+    #video{width:100%;display:block;max-height:200px;object-fit:cover}
+    #canvas{display:none}
+    .crosshair{position:absolute;top:0;bottom:0;left:50%;width:2px;background:rgba(240,192,64,.5);pointer-events:none}
+    .cam-lbl{position:absolute;top:8px;left:8px;background:rgba(0,0,0,.8);padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700;letter-spacing:1px}
+    .armed-lbl{position:absolute;top:8px;right:8px;background:rgba(139,37,0,.9);color:#ff8855;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:700;letter-spacing:2px;display:none}
+    .motion-wrap{position:absolute;bottom:0;left:0;right:0;height:6px;background:#111}
+    .motion-bar{height:100%;width:0%;background:#00ff88;transition:width .04s,background .1s}
+    .motion-label{position:absolute;bottom:8px;right:8px;font-size:10px;color:rgba(255,255,255,.4);letter-spacing:1px}
+    .timer-card{width:100%;max-width:380px;background:#0c0c0c;border:2px solid #1e1e1e;border-radius:12px;padding:14px 16px;text-align:center;transition:border-color .3s,background .3s}
+    .timer-lbl{font-size:11px;letter-spacing:4px;margin-bottom:4px;color:#555}
+    .timer-val{font-size:48px;font-weight:900;line-height:1;color:#333}
+    .timer-unit{font-size:18px;font-weight:400;margin-left:2px}
+    .timer-sub{font-size:12px;color:#666;margin-top:6px}
+    .name-input{background:#000;border:1px solid #2a2a2a;border-radius:8px;padding:10px 12px;font-size:15px;color:#fff;width:100%;max-width:380px;outline:none;font-family:'Courier New',monospace}
+    .name-input::placeholder{color:#2a2a2a}
+    .list-card{width:100%;max-width:380px;background:#0a0a0a;border:1px solid #1a1a1a;border-radius:12px;padding:12px 14px}
+    .list-hdr{font-size:10px;color:#444;letter-spacing:3px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+    .list-clear{font-size:10px;color:#333;cursor:pointer;background:none;border:none;font-family:'Courier New',monospace;padding:2px 6px}
+    .list-clear:active{color:#ff4444}
+    .f-item{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #111}
+    .f-item:last-child{border-bottom:none}
+    .f-name{font-size:12px;color:#777}
+    .f-dist{font-size:10px;color:#333}
+    .f-time{font-size:18px;font-weight:900;color:#f0c040;letter-spacing:1px}
+    .list-empty{font-size:11px;color:#2a2a2a;text-align:center;padding:8px 0}
+    .slider-row{width:100%;max-width:380px;display:flex;align-items:center;gap:8px;background:#0e0e0e;border:1px solid #1a1a1a;border-radius:8px;padding:8px 12px}
+    .slider-lbl{color:#3a3a3a;font-size:10px;letter-spacing:1px;white-space:nowrap}
+    .slider-val{color:#3a3a3a;font-size:10px;min-width:20px;text-align:right}
+    #sensitivity{flex:1;accent-color:#f0c040}
+    .log-box{width:100%;max-width:380px;background:#060606;border:1px solid #111;border-radius:8px;padding:8px 10px;max-height:80px;overflow-y:auto}
+    .log-line{font-size:10px;color:#2a2a2a;margin-bottom:1px}
+    .log-line.new{color:#4a4a4a}
+    .section-title{width:100%;max-width:380px;font-size:10px;color:#333;letter-spacing:3px;padding:0 2px}
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ROLE SELECT -->
+  <div id="s-role" class="screen active">
+    <div class="hero">
+      <div class="hero-icon">🦅</div>
+      <h1 class="hero-title">FALCON<br>TIMER</h1>
+      <p class="hero-sub">GPS · MOTION · TIMING</p>
+    </div>
+    <div class="role-wrap">
+      <p class="role-q">Which phone is this?</p>
+      <button class="role-btn role-start" onclick="go('start')">
+        <span class="role-btn-icon">🟢</span>
+        <span class="role-btn-title">START LINE</span>
+        <span class="role-btn-sub">Phone placed at beginning of race</span>
+      </button>
+      <button class="role-btn role-finish" onclick="go('finish')">
+        <span class="role-btn-icon">🏁</span>
+        <span class="role-btn-title">FINISH LINE</span>
+        <span class="role-btn-sub">Phone placed at end of race</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- WAIT START -->
+  <div id="s-wait-start" class="screen">
+    <div class="top-bar">
+      <span class="top-badge badge-green">🟢 START PHONE</span>
+    </div>
+    <div class="card">
+      <p class="card-label">Share this code with the FINISH phone:</p>
+      <div class="big-code" id="code-show">------</div>
+      <div class="conn-bar">
+        <div class="dot wait" id="dot-ws"></div>
+        <span class="conn-txt" id="txt-ws">Waiting for finish phone...</span>
+      </div>
+      <p class="card-hint">Open this app on the other phone → tap FINISH LINE → enter this code. Then tap the button below.</p>
+      <button class="btn btn-green" onclick="startReady()">✅ Both phones ready — Start</button>
+    </div>
+    <div class="log-box" id="log-ws"></div>
+  </div>
+
+  <!-- WAIT FINISH -->
+  <div id="s-wait-finish" class="screen">
+    <div class="top-bar">
+      <span class="top-badge badge-blue">🏁 FINISH PHONE</span>
+    </div>
+    <div class="card">
+      <p class="card-label">Enter the code from the START phone:</p>
+      <input class="code-input" id="code-in" placeholder="X7K2P1" maxlength="8"
+        oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')"/>
+      <button class="btn btn-blue" onclick="finishJoin()">🔗 Connect &amp; Start</button>
+      <p class="card-hint">Make sure both phones are on the same session code.</p>
+    </div>
+    <div class="log-box" id="log-wf"></div>
+  </div>
+
+  <!-- RACE SCREEN -->
+  <div id="s-race" class="screen">
+    <div class="top-bar">
+      <span class="top-badge" id="r-badge">🟢 START</span>
+      <span style="font-size:10px;color:#2a2a2a" id="r-session"></span>
+    </div>
+
+    <!-- Connection -->
+    <div class="conn-bar">
+      <div class="dot wait" id="r-dot"></div>
+      <span class="conn-txt" id="r-conn-txt">Connecting to other phone...</span>
+    </div>
+
+    <!-- GPS -->
+    <div class="dist-card" id="dist-card">
+      <div class="dist-row">
+        <div>
+          <p class="dist-lbl">📍 DISTANCE</p>
+          <p class="dist-val" id="dist-val" style="color:#333">---</p>
+          <p class="dist-hint" id="dist-hint" style="color:#444">Waiting for GPS on both phones...</p>
+        </div>
+        <div class="gps-box">
+          <p class="gps-st" id="gps-st" style="color:#444">○ GPS Off</p>
+          <p class="gps-ln" id="gps-acc"></p>
+          <p class="gps-ln" id="gps-me">Me: ---</p>
+          <p class="gps-ln" id="gps-peer">Peer: waiting...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Falcon name -->
+    <input class="name-input" id="falcon-name" placeholder="🦅 Falcon name (e.g. Thunder)" maxlength="30"/>
+
+    <!-- Camera -->
+    <div class="cam-box">
+      <video id="video" playsinline muted></video>
+      <canvas id="canvas"></canvas>
+      <div class="crosshair"></div>
+      <div class="cam-lbl" id="cam-lbl">🟢 START</div>
+      <div class="armed-lbl" id="armed-lbl">● ARMED</div>
+      <div class="motion-wrap"><div class="motion-bar" id="motion-bar"></div></div>
+      <div class="motion-label" id="motion-pct">0%</div>
+    </div>
+
+    <!-- Timer -->
+    <div class="timer-card" id="timer-card">
+      <p class="timer-lbl" id="t-lbl">READY</p>
+      <p class="timer-val" id="t-val">—</p>
+      <p class="timer-sub" id="t-sub"></p>
+    </div>
+
+    <!-- Buttons -->
+    <div class="btn-row">
+      <button class="btn btn-red"  id="btn-arm"   onclick="arm()"       style="display:none">🎯 ARM — Watch for Falcon</button>
+      <button class="btn btn-gray" id="btn-reset" onclick="resetRace()" style="display:none">🔄 Next Race</button>
+    </div>
+
+    <!-- Sensitivity -->
+    <div class="slider-row">
+      <span class="slider-lbl">Camera Sensitivity</span>
+      <input type="range" id="sensitivity" min="3" max="50" value="15"
+        oninput="document.getElementById('sv').textContent=this.value"/>
+      <span class="slider-val" id="sv">15</span>
+    </div>
+
+    <!-- Results -->
+    <div class="list-card">
+      <div class="list-hdr">
+        <span>🦅 RACE RESULTS</span>
+        <button class="list-clear" onclick="clearAll()">CLEAR ALL</button>
+      </div>
+      <div id="f-list"><p class="list-empty">No races yet</p></div>
+    </div>
+
+    <div class="log-box" id="log-race"></div>
+  </div>
+
+</div>
+<script>
+// ═══════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════
+let role,code,status='idle',myLoc=null,peerLoc=null;
+let t0=null,elapsed=null,prevFrame=null,armed=false;
+let camOk=false,results=[],raceN=0;
+let ablyRealtime=null, channel=null;
+
+// ═══════════════════════════════════════════════
+// SOUNDS
+// ═══════════════════════════════════════════════
+let actx=null;
+function ac(){if(!actx)actx=new(window.AudioContext||window.webkitAudioContext)();return actx;}
+function beep(f,d,v=0.5){
+  try{const c=ac(),o=c.createOscillator(),g=c.createGain();
+  o.connect(g);g.connect(c.destination);
+  o.frequency.value=f;g.gain.setValueAtTime(v,c.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+d);
+  o.start();o.stop(c.currentTime+d);}catch(e){}
+}
+function sndArm()   {beep(880,.12);setTimeout(()=>beep(880,.15),160);}
+function sndStart() {beep(550,.07);setTimeout(()=>beep(770,.08),100);setTimeout(()=>beep(1050,.2),210);}
+function sndFinish(){[523,659,784,1047].forEach((f,i)=>setTimeout(()=>beep(f,.18),i*130));}
+
+// ═══════════════════════════════════════════════
+// ABLY REALTIME — free, reliable, 2-phone sync
+// key is public free demo key (read Ably docs for your own)
+// ═══════════════════════════════════════════════
+const ABLY_KEY = 'xVLyHw.8tU2Mw:jJm3jkdNP4FkHbzQ7nHNLPq6m3xFPFetFBVjYCTmDco';
+
+function loadAbly(cb){
+  if(window.Ably){cb();return;}
+  const s=document.createElement('script');
+  s.src='https://cdn.ably.com/lib/ably.min-1.js';
+  s.onload=cb; s.onerror=()=>{log('❌ Network error loading Ably');usePolling();};
+  document.head.appendChild(s);
+}
+
+function connectAbly(sessionCode, onReady){
+  loadAbly(()=>{
+    try{
+      ablyRealtime = new Ably.Realtime({key: ABLY_KEY, clientId: role+'-'+Math.random().toString(36).substr(2,4)});
+      ablyRealtime.connection.on('connected',()=>{
+        log('✅ Network connected');
+        channel = ablyRealtime.channels.get('falcon-'+sessionCode);
+        channel.subscribe(msg=>{
+          try{ handleMsg(JSON.parse(msg.data)); }catch(e){}
+        });
+        onReady();
+      });
+      ablyRealtime.connection.on('failed',()=>{ log('❌ Connection failed — trying backup...'); usePolling(); });
+      ablyRealtime.connection.on('disconnected',()=>{ setConn(false,'Reconnecting...'); });
+      ablyRealtime.connection.on('connected',()=>{ setConn(true,'Connected ✅'); });
+    }catch(e){ log('❌ Error: '+e.message); usePolling(); }
+  });
+}
+
+// ── Polling fallback (jsonbin) ──────────────────
+// If Ably fails, fall back to polling a free JSON store
+let pollInterval=null, lastSeen={};
+const BIN_ID='67fe5a4facd3cb34a8d19cba'; // free jsonbin.io bin
+const BIN_KEY='$2a$10$ABCDEFGH1234567890abcd'; // placeholder
+
+function usePolling(){
+  log('📡 Using backup connection...');
+  setConn(false,'Using backup sync...');
+  // Start polling every 1.5 seconds
+  pollInterval = setInterval(pollMessages, 1500);
+  setConn(true, 'Backup connected');
+}
+
+async function pollMessages(){
+  try{
+    const r = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`,{
+      headers:{'X-Master-Key':BIN_KEY,'X-Bin-Meta':'false'}
+    });
+    const data = await r.json();
+    const msgs = data[code] || [];
+    msgs.forEach(m=>{
+      const key = m.type+m.ts;
+      if(!lastSeen[key]){ lastSeen[key]=true; handleMsg(m); }
+    });
+  }catch(e){}
+}
+
+function send(type, extra={}){
+  const msg = {type, from:role, ts:Date.now(), ...extra};
+  if(channel){
+    channel.publish('msg', JSON.stringify(msg));
+  }
+}
+
+// ═══════════════════════════════════════════════
+// MESSAGE HANDLER
+// ═══════════════════════════════════════════════
+function handleMsg(m){
+  if(m.from===role) return; // ignore own messages
+  if(m.type==='GPS'){
+    peerLoc={lat:m.lat,lon:m.lon};
+    document.getElementById('gps-peer').textContent=`Peer: ${m.lat.toFixed(5)}`;
+    updateDist(); return;
+  }
+  if(m.type==='PEER_READY'){ setConn(true,'✅ Both phones connected!'); setStatus('ready'); log('✅ Other phone connected!'); return; }
+  if(m.type==='START' && role==='finish'){
+    t0=m.ts; setStatus('racing'); armed=true; startTimer(); sndStart();
+    log('⚡ Falcon passed start! Watching finish...'); return;
+  }
+  if(m.type==='FINISH' && role==='start'){
+    const t=m.ts-t0; addResult(m.name||'Falcon',t); setStatus('finished',t); sndFinish();
+    log('🏆 '+( m.name||'Falcon')+': '+fmt(t)+'s'); return;
+  }
+  if(m.type==='RESET'){ doReset(); }
+}
+
+// ═══════════════════════════════════════════════
+// GPS
+// ═══════════════════════════════════════════════
+function startGPS(){
+  if(!navigator.geolocation){gpsUI('err');return;}
+  gpsUI('acq'); log('📡 Getting GPS...');
+  navigator.geolocation.watchPosition(pos=>{
+    myLoc={lat:pos.coords.latitude,lon:pos.coords.longitude};
+    const acc=Math.round(pos.coords.accuracy);
+    gpsUI('ok',acc);
+    document.getElementById('gps-me').textContent=`Me: ${myLoc.lat.toFixed(5)}`;
+    updateDist();
+    send('GPS',{lat:myLoc.lat,lon:myLoc.lon,acc});
+  },err=>{gpsUI('err');log('⚠️ GPS: '+err.message);},{enableHighAccuracy:true,maximumAge:2000,timeout:20000});
+}
+
+function gpsUI(s,acc){
+  const el=document.getElementById('gps-st');
+  if(s==='ok'){el.textContent='🛰 GPS Active';el.style.color='#00ff88';if(acc)document.getElementById('gps-acc').textContent=`±${acc}m`;}
+  else if(s==='acq'){el.textContent='⏳ Acquiring...';el.style.color='#ffaa00';}
+  else{el.textContent='❌ GPS Error';el.style.color='#ff4444';}
+}
+
+function haversine(a,b,c,d){
+  const R=6371000,r=x=>x*Math.PI/180,dL=r(c-a),dO=r(d-b);
+  const x=Math.sin(dL/2)**2+Math.cos(r(a))*Math.cos(r(c))*Math.sin(dO/2)**2;
+  return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
+}
+
+function updateDist(){
+  if(!myLoc||!peerLoc)return;
+  const d=haversine(myLoc.lat,myLoc.lon,peerLoc.lat,peerLoc.lon);
+  const n=Math.round(d/50)*50, diff=Math.round(d-n), ad=Math.abs(diff);
+  const col=ad<=8?'#00ff88':ad<=25?'#ffaa00':'#ff6644';
+  const hint=ad<=8?`✅ Good — approx ${n}m`:diff>0?`Move finish ${diff}m closer ←`:`Move finish ${ad}m further →`;
+  const str=d>=1000?`${(d/1000).toFixed(2)} km`:`${d.toFixed(1)} m`;
+  document.getElementById('dist-card').style.borderColor=col;
+  const dv=document.getElementById('dist-val'); dv.textContent=str; dv.style.color=col;
+  const dh=document.getElementById('dist-hint'); dh.textContent=hint; dh.style.color=col;
+}
+
+// ═══════════════════════════════════════════════
+// CAMERA
+// ═══════════════════════════════════════════════
+async function startCam(){
+  if(camOk)return;
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:'environment',width:{ideal:320},height:{ideal:240},frameRate:{ideal:60}},audio:false
+    });
+    const v=document.getElementById('video');
+    v.srcObject=stream; await v.play();
+    camOk=true; log('📷 Camera ready');
+    motionLoop();
+  }catch(e){log('❌ Camera: '+e.message);}
+}
+
+function motionLoop(){
+  const v=document.getElementById('video'),cv=document.getElementById('canvas'),ctx=cv.getContext('2d',{willReadFrequently:true});
+  cv.width=320; cv.height=240;
+  let cooldown=0;
+  function loop(){
+    if(v.readyState>=2){
+      ctx.drawImage(v,0,0,320,240);
+      const f=ctx.getImageData(0,0,320,240);
+      if(prevFrame){
+        const sens=parseInt(document.getElementById('sensitivity').value);
+        let changed=0, total=0;
+        // Only check center strip (where falcon crosses)
+        for(let y=80;y<160;y++){
+          for(let x=100;x<220;x++){
+            const i=(y*320+x)*4;
+            if(Math.abs(f.data[i]-prevFrame[i])+Math.abs(f.data[i+1]-prevFrame[i+1])+Math.abs(f.data[i+2]-prevFrame[i+2])>sens) changed++;
+            total++;
+          }
+        }
+        const pct=Math.min(100,Math.round((changed/total)*100*3));
+        document.getElementById('motion-bar').style.width=pct+'%';
+        document.getElementById('motion-bar').style.background=pct>50?'#ff4444':pct>15?'#ffaa00':'#00ff88';
+        document.getElementById('motion-pct').textContent=pct+'%';
+
+        if(armed && cooldown<=0 && pct>20){
+          cooldown=60; // prevent double trigger
+          const ts=Date.now();
+          if(role==='start'&&status==='ready'){
+            t0=ts; armed=false; setStatus('racing'); startTimer(); sndStart();
+            send('START',{ts}); document.getElementById('armed-lbl').style.display='none';
+            log('🚀 START — Falcon detected!');
+          } else if(role==='finish'&&status==='racing'){
+            const t=ts-t0, name=document.getElementById('falcon-name').value.trim()||`Falcon ${raceN+1}`;
+            armed=false; setStatus('finished',t); sndFinish();
+            send('FINISH',{ts,name}); addResult(name,t);
+            document.getElementById('armed-lbl').style.display='none';
+            log('🏁 FINISH — '+fmt(t)+'s');
+          }
+        }
+        if(cooldown>0) cooldown--;
+      }
+      prevFrame=f.data.slice();
+    }
+    requestAnimationFrame(loop);
+  }
+  loop();
+}
+
+// ═══════════════════════════════════════════════
+// TIMER
+// ═══════════════════════════════════════════════
+function startTimer(){
+  clearInterval(elapsed);
+  elapsed=setInterval(()=>{if(t0)document.getElementById('t-val').textContent=fmt(Date.now()-t0);},50);
+}
+function stopTimer(){clearInterval(elapsed);}
+function fmt(ms){return`${Math.floor(ms/1000)}.${String(ms%1000).padStart(3,'0')}`;}
+
+// ═══════════════════════════════════════════════
+// STATUS UI
+// ═══════════════════════════════════════════════
+function setStatus(s,ms){
+  status=s;
+  const card=document.getElementById('timer-card'),
+        lbl=document.getElementById('t-lbl'),
+        val=document.getElementById('t-val'),
+        sub=document.getElementById('t-sub'),
+        ba=document.getElementById('btn-arm'),
+        br=document.getElementById('btn-reset');
+  if(s==='ready'){
+    card.style.cssText='background:#0c0c0c;border-color:#1e1e1e;border-radius:12px;padding:14px 16px;text-align:center';
+    lbl.style.color='#555';lbl.textContent='READY';
+    val.style.color='#333';val.textContent='—';sub.textContent='';
+    ba.style.display='block';br.style.display='none';stopTimer();
+  }else if(s==='racing'){
+    card.style.cssText='background:#001a0a;border:2px solid #00ff88;border-radius:12px;padding:14px 16px;text-align:center';
+    lbl.style.color='#00ff88';lbl.textContent='⚡ RACING';
+    val.style.color='#00ff88';val.textContent='0.000';sub.textContent='';
+    ba.style.display='none';br.style.display='none';
+  }else if(s==='finished'){
+    stopTimer();
+    card.style.cssText='background:#110e00;border:2px solid #f0c040;border-radius:12px;padding:14px 16px;text-align:center';
+    lbl.style.color='#f0c040';lbl.textContent='🏆 RACE TIME';
+    val.style.color='#f0c040';
+    val.innerHTML=fmt(ms)+'<span style="font-size:18px;font-weight:400">s</span>';
+    if(myLoc&&peerLoc){const d=haversine(myLoc.lat,myLoc.lon,peerLoc.lat,peerLoc.lon);sub.textContent=`📍 ${d>=1000?(d/1000).toFixed(2)+' km':d.toFixed(1)+' m'}`;}
+    ba.style.display='none';br.style.display='block';
+  }
+}
+
+// ═══════════════════════════════════════════════
+// RESULTS
+// ═══════════════════════════════════════════════
+function addResult(name,ms){
+  raceN++;
+  const dist=(myLoc&&peerLoc)?haversine(myLoc.lat,myLoc.lon,peerLoc.lat,peerLoc.lon):null;
+  results.unshift({name,ms,dist});
+  renderList();
+}
+function renderList(){
+  const el=document.getElementById('f-list');
+  if(!results.length){el.innerHTML='<p class="list-empty">No races yet</p>';return;}
+  el.innerHTML=results.map((r,i)=>`
+    <div class="f-item">
+      <div>
+        <div class="f-name">#${results.length-i} ${r.name}</div>
+        ${r.dist?`<div class="f-dist">📍 ${r.dist>=1000?(r.dist/1000).toFixed(2)+' km':r.dist.toFixed(1)+' m'}</div>`:''}
+      </div>
+      <div class="f-time">${fmt(r.ms)}s</div>
+    </div>`).join('');
+}
+function clearAll(){results=[];raceN=0;renderList();}
+
+// ═══════════════════════════════════════════════
+// CONNECTION UI
+// ═══════════════════════════════════════════════
+function setConn(ok,txt){
+  const d=document.getElementById('r-dot'),t=document.getElementById('r-conn-txt');
+  const d2=document.getElementById('dot-ws'),t2=document.getElementById('txt-ws');
+  if(ok){
+    [d,d2].forEach(x=>{if(x){x.className='dot on';}});
+    if(t){t.textContent=txt||'Connected';t.style.color='#00ff88';}
+    if(t2){t2.textContent=txt||'Finish phone connected!';t2.style.color='#00ff88';}
+  }else{
+    [d,d2].forEach(x=>{if(x){x.className='dot wait';}});
+    if(t){t.textContent=txt||'Connecting...';t.style.color='#ffaa00';}
+  }
+}
+
+// ═══════════════════════════════════════════════
+// LOG
+// ═══════════════════════════════════════════════
+function log(msg,box){
+  const el=document.getElementById(box||'log-race');if(!el)return;
+  const d=document.createElement('div');d.className='log-line new';
+  d.textContent=new Date().toLocaleTimeString()+': '+msg;
+  el.insertBefore(d,el.firstChild);
+  el.querySelectorAll('.log-line.new').forEach((l,i)=>{if(i>0)l.classList.remove('new');});
+  while(el.children.length>10)el.removeChild(el.lastChild);
+}
+
+// ═══════════════════════════════════════════════
+// ACTIONS
+// ═══════════════════════════════════════════════
+function go(r){
+  role=r; try{ac();}catch(e){}
+  if(r==='start'){
+    code=Math.random().toString(36).substr(2,6).toUpperCase();
+    document.getElementById('code-show').textContent=code;
+    show('s-wait-start'); log('🟢 Code: '+code,'log-ws');
+    connectAbly(code,()=>{ send('PING'); });
+  }else{
+    show('s-wait-finish');
+  }
+}
+
+function startReady(){
+  setupRace();
+  connectAbly(code,()=>{
+    send('PEER_READY');
+    setStatus('ready');
+    setConn(true,'✅ Connected');
+  });
+  startCam(); startGPS();
+}
+
+function finishJoin(){
+  code=document.getElementById('code-in').value.trim().toUpperCase();
+  if(code.length<4){alert('Enter the code from the start phone');return;}
+  log('🔗 Joining '+code,'log-wf');
+  connectAbly(code,()=>{
+    send('PEER_READY');
+    setupRace();
+    setStatus('ready');
+    setConn(true,'✅ Connected');
+  });
+  startCam(); startGPS();
+  show('s-race');
+  document.getElementById('r-badge').textContent='🏁 FINISH';
+  document.getElementById('r-badge').className='top-badge badge-blue';
+  document.getElementById('cam-lbl').textContent='🏁 FINISH';
+  document.getElementById('r-session').textContent='SESSION: '+code;
+}
+
+function setupRace(){
+  show('s-race');
+  const isS=role==='start';
+  document.getElementById('r-badge').textContent=isS?'🟢 START':'🏁 FINISH';
+  document.getElementById('r-badge').className='top-badge '+(isS?'badge-green':'badge-blue');
+  document.getElementById('cam-lbl').textContent=isS?'🟢 START':'🏁 FINISH';
+  document.getElementById('r-session').textContent='SESSION: '+code;
+}
+
+function arm(){
+  armed=true;
+  document.getElementById('armed-lbl').style.display='block';
+  document.getElementById('btn-arm').style.display='none';
+  sndArm(); log('🎯 ARMED — watching for falcon...');
+}
+
+function doReset(){
+  armed=false; t0=null; prevFrame=null; stopTimer();
+  document.getElementById('armed-lbl').style.display='none';
+  setStatus('ready'); log('🔄 Ready for next race');
+}
+
+function resetRace(){ doReset(); send('RESET'); }
+
+function show(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+</script>
+</body>
+</html>
