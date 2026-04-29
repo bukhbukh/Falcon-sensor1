@@ -73,7 +73,6 @@
     .tcard{background:#0a0a0a;border:2px solid #181818;border-radius:14px;padding:16px;text-align:center;transition:border-color .3s,background .3s}
     .tlbl{font-size:11px;letter-spacing:4px;margin-bottom:4px;color:#444}
     .tval{font-size:54px;font-weight:900;line-height:1;color:#222}
-    .tunit{font-size:20px;font-weight:400;margin-left:2px}
     .tsub{font-size:12px;color:#444;margin-top:7px}
     .rcard{background:#060606;border:1px solid #141414;border-radius:12px;padding:13px 15px}
     .rhdr{font-size:10px;color:#2a2a2a;letter-spacing:3px;margin-bottom:9px;display:flex;justify-content:space-between;align-items:center}
@@ -90,8 +89,6 @@
     .ll.n{color:#3a3a3a}
     .namein{background:#000;border:1px solid #1a1a1a;border-radius:8px;padding:11px 13px;font-size:14px;color:#aaa;width:100%;max-width:390px;outline:none;font-family:'Courier New',monospace}
     .namein::placeholder{color:#1e1e1e}
-    .infobox{background:#080808;border:1px solid #141414;border-radius:10px;padding:12px 14px;font-size:11px;color:#2a2a2a;line-height:1.9;text-align:center}
-    .infobox b{color:#555}
   </style>
 </head>
 <body>
@@ -117,12 +114,6 @@
         <span class="sub">Phone at end of race</span>
       </button>
     </div>
-    <div class="infobox w">
-      <b>How it works:</b><br>
-      Place phone sideways to the flight path.<br>
-      Falcon crosses camera → timer starts/stops.<br>
-      Both phones sync instantly over internet.
-    </div>
   </div>
 
   <!-- WAIT START -->
@@ -135,7 +126,7 @@
         <div class="dot wait" id="dot-ws"></div>
         <span class="ctxt" id="txt-ws">Waiting for finish phone...</span>
       </div>
-      <p class="chint">Open this app on finish phone → tap <b>FINISH LINE</b> → enter code → tap Connect.<br><br>When finish phone connects the dot turns green.</p>
+      <p class="chint">Open this app on finish phone → tap <b>FINISH LINE</b> → enter code → tap Connect.</p>
       <button class="btn green" onclick="startReady()">✅ Open Camera &amp; GPS</button>
     </div>
     <div class="logbox w" id="log-ws"></div>
@@ -214,79 +205,83 @@
 
 </div>
 <script>
-// ═══════════════════════════════════════════════════════
-// SUPABASE CONFIG — your real project
-// ═══════════════════════════════════════════════════════
-const SUPABASE_URL = 'https://ygxkcyowwbwdgkghbplv.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_ZfoS4DP2Gf_gxo3YmNwzcg_hdE-bgpf';
+// ═══════════════════════════════════════
+// SUPABASE — using correct Broadcast API
+// ═══════════════════════════════════════
+const SUPA_URL = 'https://ygxkcyowwbwdgkghbplv.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlneGtjeW93d2J3ZGdrZ2hicGx2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMDUwNzQsImV4cCI6MjA5Mjg4MTA3NH0.NFYtKkUgKURpx34ywn18O7uFVpVC5cRMjGQ1rWKH-Vk';
 
-// ═══════════════════════════════════════════════════════
-// We use Supabase Realtime — it's a WebSocket channel
-// built into Supabase. No server needed. Works globally.
-// ═══════════════════════════════════════════════════════
-let supabase = null;
-let realtimeChannel = null;
-
+let sb = null, ch = null;
 let role, code, status = 'idle';
 let myLoc = null, peerLoc = null;
 let t0 = null, timerInt = null, prevFrame = null;
 let armed = false, camOk = false;
 let results = [], raceN = 0, actx = null;
 
-// ── Load Supabase SDK ────────────────────────────────
-function loadSupabase(cb) {
+// ── Load Supabase ────────────────────────
+function initSupabase(cb) {
+  if (sb) { cb(); return; }
   const s = document.createElement('script');
   s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
   s.onload = () => {
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    log('📡 Supabase loaded');
+    sb = window.supabase.createClient(SUPA_URL, SUPA_KEY, {
+      realtime: {
+        params: { eventsPerSecond: 10 }
+      }
+    });
+    log('✅ Supabase ready');
     cb();
   };
-  s.onerror = () => log('❌ Failed to load Supabase — check internet');
+  s.onerror = () => log('❌ Failed to load — check internet connection');
   document.head.appendChild(s);
 }
 
-// ── Connect to realtime channel ──────────────────────
-function connectChannel(room, onReady) {
-  loadSupabase(() => {
-    realtimeChannel = supabase.channel('falcon-' + room, {
-      config: { broadcast: { self: false } }
+// ── Join channel ─────────────────────────
+function joinChannel(room, onJoined) {
+  initSupabase(() => {
+    // Remove old channel if exists
+    if (ch) { sb.removeChannel(ch); }
+
+    ch = sb.channel('room:' + room, {
+      config: {
+        broadcast: { self: false, ack: false },
+        presence: { key: role }
+      }
     });
 
-    realtimeChannel
-      .on('broadcast', { event: 'msg' }, ({ payload }) => {
-        onMsg(payload);
-      })
-      .subscribe((state) => {
-        log('📡 Channel state: ' + state);
-        if (state === 'SUBSCRIBED') {
-          setConn(true, '✅ Connected to network');
-          onReady();
-        } else if (state === 'CHANNEL_ERROR') {
-          setConn(false, '❌ Connection error');
-          log('❌ Channel error — retrying...');
-          setTimeout(() => connectChannel(room, onReady), 3000);
-        } else if (state === 'CLOSED') {
-          setConn(false, 'Reconnecting...');
-          setTimeout(() => connectChannel(room, onReady), 2000);
-        }
-      });
+    // Listen for all messages
+    ch.on('broadcast', { event: '*' }, ({ event, payload }) => {
+      onMsg(payload);
+    });
+
+    // Subscribe
+    ch.subscribe((state, err) => {
+      log('📡 State: ' + state + (err ? ' ERR:' + err : ''));
+      if (state === 'SUBSCRIBED') {
+        setConn(true, '✅ Connected — waiting for other phone');
+        onJoined();
+      } else if (state === 'CLOSED' || state === 'CHANNEL_ERROR') {
+        setConn(false, 'Reconnecting...');
+        setTimeout(() => joinChannel(room, onJoined), 3000);
+      }
+    });
   });
 }
 
-// ── Send message ─────────────────────────────────────
+// ── Send ─────────────────────────────────
 function send(type, data = {}) {
-  if (!realtimeChannel) return;
-  realtimeChannel.send({
+  if (!ch) return;
+  ch.send({
     type: 'broadcast',
-    event: 'msg',
+    event: type,
     payload: { type, from: role, ts: Date.now(), ...data }
   });
 }
 
-// ── Receive message ──────────────────────────────────
+// ── Receive ──────────────────────────────
 function onMsg(m) {
-  if (m.from === role) return; // ignore own messages
+  if (!m || m.from === role) return;
+  log('📲 ' + m.type + ' from ' + m.from);
 
   if (m.type === 'HELLO') {
     setConn(true, '✅ Both phones connected!');
@@ -327,9 +322,9 @@ function onMsg(m) {
   if (m.type === 'RESET') doReset();
 }
 
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════
 // SOUNDS
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════
 function ac() {
   if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
   actx.resume(); return actx;
@@ -342,15 +337,15 @@ function beep(f, d, v = 0.5) {
     g.gain.setValueAtTime(v, c.currentTime);
     g.gain.exponentialRampToValueAtTime(.001, c.currentTime + d);
     o.start(); o.stop(c.currentTime + d);
-  } catch (e) {}
+  } catch(e) {}
 }
 function sndArm()    { beep(660, .08); setTimeout(() => beep(880, .12), 120); }
-function sndStart()  { [440, 660, 880].forEach((f, i) => setTimeout(() => beep(f, .15), i * 100)); }
-function sndFinish() { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => beep(f, .22), i * 120)); }
+function sndStart()  { [440,660,880].forEach((f,i) => setTimeout(() => beep(f,.15), i*100)); }
+function sndFinish() { [523,659,784,1047].forEach((f,i) => setTimeout(() => beep(f,.22), i*120)); }
 
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════
 // GPS
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════
 function startGPS() {
   if (!navigator.geolocation) { gpsUI('err'); return; }
   gpsUI('acq'); log('📡 Getting GPS...');
@@ -363,51 +358,49 @@ function startGPS() {
     send('GPS', { lat: myLoc.lat, lon: myLoc.lon });
   }, e => {
     gpsUI('err');
-    log('⚠️ GPS denied — go to Safari Settings → allow Location');
+    log('⚠️ GPS denied — Settings → Safari → Location → Allow');
   }, { enableHighAccuracy: true, maximumAge: 3000, timeout: 20000 });
 }
-
 function gpsUI(s, acc) {
   const el = document.getElementById('gst');
   if (s === 'ok') { el.textContent = '🛰 GPS Active'; el.style.color = '#00ff88'; if (acc) document.getElementById('gacc').textContent = '±' + acc + 'm'; }
   else if (s === 'acq') { el.textContent = '⏳ Acquiring...'; el.style.color = '#ffaa00'; }
   else { el.textContent = '❌ GPS Error'; el.style.color = '#ff4444'; }
 }
-
-function hav(a, b, c, d) {
-  const R = 6371000, r = x => x * Math.PI / 180;
-  const x = Math.sin(r(c - a) / 2) ** 2 + Math.cos(r(a)) * Math.cos(r(c)) * Math.sin(r(d - b) / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+function hav(a,b,c,d) {
+  const R=6371000, r=x=>x*Math.PI/180;
+  const x=Math.sin(r(c-a)/2)**2+Math.cos(r(a))*Math.cos(r(c))*Math.sin(r(d-b)/2)**2;
+  return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
 }
-
 function updateDist() {
   if (!myLoc || !peerLoc) return;
   const d = hav(myLoc.lat, myLoc.lon, peerLoc.lat, peerLoc.lon);
-  const n = Math.round(d / 50) * 50, diff = Math.round(d - n), ad = Math.abs(diff);
-  const col = ad <= 8 ? '#00ff88' : ad <= 25 ? '#ffaa00' : '#ff6644';
-  const hint = ad <= 8 ? '✅ Perfect — approx ' + n + 'm' : diff > 0 ? 'Move finish ' + diff + 'm closer ←' : 'Move finish ' + ad + 'm further →';
-  const str = d >= 1000 ? (d / 1000).toFixed(2) + ' km' : d.toFixed(1) + ' m';
+  const n = Math.round(d/50)*50, diff = Math.round(d-n), ad = Math.abs(diff);
+  const col = ad<=8?'#00ff88':ad<=25?'#ffaa00':'#ff6644';
+  const hint = ad<=8?'✅ Perfect — approx '+n+'m':diff>0?'Move finish '+diff+'m closer ←':'Move finish '+ad+'m further →';
+  const str = d>=1000?(d/1000).toFixed(2)+' km':d.toFixed(1)+' m';
   document.getElementById('gcard').style.borderColor = col;
   const v = document.getElementById('gval'); v.textContent = str; v.style.color = col;
   const h = document.getElementById('ghint'); h.textContent = hint; h.style.color = col;
 }
 
-// ═══════════════════════════════════════════════════════
-// CAMERA & MOTION DETECTION
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════
+// CAMERA
+// ═══════════════════════════════════════
 async function startCam() {
   if (camOk) return;
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 60 } },
+      video: { facingMode: 'environment', width: {ideal:640}, height: {ideal:480}, frameRate: {ideal:60} },
       audio: false
     });
     const v = document.getElementById('video');
     v.srcObject = stream; await v.play();
-    camOk = true; log('📷 Camera ready — wave hand to test motion %');
+    camOk = true;
+    log('📷 Camera ready — wave hand to see motion %');
     motionLoop();
-  } catch (e) {
-    log('❌ Camera: ' + e.message + ' — allow Camera in Safari Settings');
+  } catch(e) {
+    log('❌ Camera: ' + e.message + ' — Settings → Safari → Camera → Allow');
   }
 }
 
@@ -422,44 +415,34 @@ function motionLoop() {
     if (v.readyState >= 2) {
       ctx.drawImage(v, 0, 0, 320, 240);
       const f = ctx.getImageData(0, 0, 320, 240);
-
       if (prevFrame) {
         const s = parseInt(document.getElementById('sens').value);
         let ch = 0, tot = 0;
-        // Check center zone only
         for (let y = 48; y < 192; y++) {
           for (let x = 64; x < 256; x++) {
             const i = (y * 320 + x) * 4;
-            if (
-              Math.abs(f.data[i]   - prevFrame[i])   +
-              Math.abs(f.data[i+1] - prevFrame[i+1]) +
-              Math.abs(f.data[i+2] - prevFrame[i+2]) > s
-            ) ch++;
+            if (Math.abs(f.data[i]-prevFrame[i]) + Math.abs(f.data[i+1]-prevFrame[i+1]) + Math.abs(f.data[i+2]-prevFrame[i+2]) > s) ch++;
             tot++;
           }
         }
-
         const pct = Math.min(100, Math.round(ch / tot * 100 * 5));
         const bar = document.getElementById('mbar');
         bar.style.width = pct + '%';
         bar.style.background = pct > 40 ? '#ff4444' : pct > 12 ? '#ffaa00' : '#00ff88';
         document.getElementById('mpct').textContent = pct + '%';
 
-        // TRIGGER
         if (armed && cool <= 0 && pct > 15) {
           cool = 50;
           const ts = Date.now();
           if (role === 'start' && status === 'ready') {
-            t0 = ts; armed = false;
-            setStatus('racing'); startTimer(); sndStart();
+            t0 = ts; armed = false; setStatus('racing'); startTimer(); sndStart();
             send('START', { ts });
             document.getElementById('armedlbl').style.display = 'none';
             log('🚀 FALCON DETECTED at start!');
           } else if (role === 'finish' && status === 'racing') {
             const t = ts - t0;
-            const name = document.getElementById('fname').value.trim() || 'Falcon ' + (raceN + 1);
-            armed = false;
-            setStatus('finished', t); sndFinish();
+            const name = document.getElementById('fname').value.trim() || 'Falcon ' + (raceN+1);
+            armed = false; setStatus('finished', t); sndFinish();
             send('FINISH', { ts, name });
             addResult(name, t);
             document.getElementById('armedlbl').style.display = 'none';
@@ -475,115 +458,90 @@ function motionLoop() {
   loop();
 }
 
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════
 // TIMER
-// ═══════════════════════════════════════════════════════
-function startTimer() {
-  clearInterval(timerInt);
-  timerInt = setInterval(() => {
-    if (t0) document.getElementById('tval').textContent = fmt(Date.now() - t0);
-  }, 50);
-}
-function stopTimer() { clearInterval(timerInt); }
-function fmt(ms) { return Math.floor(ms / 1000) + '.' + String(ms % 1000).padStart(3, '0'); }
+// ═══════════════════════════════════════
+function startTimer() { clearInterval(timerInt); timerInt = setInterval(() => { if (t0) document.getElementById('tval').textContent = fmt(Date.now()-t0); }, 50); }
+function stopTimer()  { clearInterval(timerInt); }
+function fmt(ms)      { return Math.floor(ms/1000) + '.' + String(ms%1000).padStart(3,'0'); }
 
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════
 // STATUS UI
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════
 function setStatus(s, ms) {
   status = s;
-  const c = document.getElementById('tcard'), l = document.getElementById('tlbl');
-  const v = document.getElementById('tval'), sb = document.getElementById('tsub');
-  const ba = document.getElementById('btnArm'), br = document.getElementById('btnReset');
-
+  const c=document.getElementById('tcard'), l=document.getElementById('tlbl');
+  const v=document.getElementById('tval'), sb=document.getElementById('tsub');
+  const ba=document.getElementById('btnArm'), br=document.getElementById('btnReset');
   if (s === 'ready') {
-    c.style.cssText = 'background:#0a0a0a;border:2px solid #181818;border-radius:14px;padding:16px;text-align:center';
-    l.style.color = '#444'; l.textContent = 'READY';
-    v.style.color = '#222'; v.textContent = '—'; sb.textContent = '';
-    ba.style.display = 'block'; br.style.display = 'none'; stopTimer();
+    c.style.cssText='background:#0a0a0a;border:2px solid #181818;border-radius:14px;padding:16px;text-align:center';
+    l.style.color='#444'; l.textContent='READY'; v.style.color='#222'; v.textContent='—'; sb.textContent='';
+    ba.style.display='block'; br.style.display='none'; stopTimer();
   } else if (s === 'racing') {
-    c.style.cssText = 'background:#001a0a;border:2px solid #00ff88;border-radius:14px;padding:16px;text-align:center';
-    l.style.color = '#00ff88'; l.textContent = '⚡ RACING';
-    v.style.color = '#00ff88'; v.textContent = '0.000'; sb.textContent = '';
-    ba.style.display = 'none'; br.style.display = 'none';
+    c.style.cssText='background:#001a0a;border:2px solid #00ff88;border-radius:14px;padding:16px;text-align:center';
+    l.style.color='#00ff88'; l.textContent='⚡ RACING'; v.style.color='#00ff88'; v.textContent='0.000'; sb.textContent='';
+    ba.style.display='none'; br.style.display='none';
   } else if (s === 'finished') {
     stopTimer();
-    c.style.cssText = 'background:#0f0a00;border:2px solid #f0c040;border-radius:14px;padding:16px;text-align:center';
-    l.style.color = '#f0c040'; l.textContent = '🏆 RACE TIME';
-    v.style.color = '#f0c040';
+    c.style.cssText='background:#0f0a00;border:2px solid #f0c040;border-radius:14px;padding:16px;text-align:center';
+    l.style.color='#f0c040'; l.textContent='🏆 RACE TIME'; v.style.color='#f0c040';
     v.innerHTML = fmt(ms) + '<span style="font-size:20px;font-weight:400">s</span>';
-    if (myLoc && peerLoc) {
-      const d = hav(myLoc.lat, myLoc.lon, peerLoc.lat, peerLoc.lon);
-      sb.textContent = '📍 ' + (d >= 1000 ? (d / 1000).toFixed(2) + ' km' : d.toFixed(1) + ' m');
-    }
-    ba.style.display = 'none'; br.style.display = 'block';
+    if (myLoc && peerLoc) { const d=hav(myLoc.lat,myLoc.lon,peerLoc.lat,peerLoc.lon); sb.textContent='📍 '+(d>=1000?(d/1000).toFixed(2)+' km':d.toFixed(1)+' m'); }
+    ba.style.display='none'; br.style.display='block';
   }
 }
 
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════
 // RESULTS
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════
 function addResult(name, ms) {
   raceN++;
-  const dist = (myLoc && peerLoc) ? hav(myLoc.lat, myLoc.lon, peerLoc.lat, peerLoc.lon) : null;
-  results.unshift({ name, ms, dist });
-  renderList();
+  const dist = (myLoc && peerLoc) ? hav(myLoc.lat,myLoc.lon,peerLoc.lat,peerLoc.lon) : null;
+  results.unshift({ name, ms, dist }); renderList();
 }
 function renderList() {
   const el = document.getElementById('rlist');
-  if (!results.length) { el.innerHTML = '<p class="rempty">No races yet</p>'; return; }
-  el.innerHTML = results.map((r, i) => `
-    <div class="ri">
-      <div>
-        <div class="rname">#${results.length - i} ${r.name}</div>
-        ${r.dist ? `<div class="rdist">📍 ${r.dist >= 1000 ? (r.dist / 1000).toFixed(2) + ' km' : r.dist.toFixed(1) + ' m'}</div>` : ''}
-      </div>
-      <div class="rtime">${fmt(r.ms)}s</div>
-    </div>`).join('');
+  if (!results.length) { el.innerHTML='<p class="rempty">No races yet</p>'; return; }
+  el.innerHTML = results.map((r,i) => `<div class="ri"><div><div class="rname">#${results.length-i} ${r.name}</div>${r.dist?`<div class="rdist">📍 ${r.dist>=1000?(r.dist/1000).toFixed(2)+' km':r.dist.toFixed(1)+' m'}</div>`:''}</div><div class="rtime">${fmt(r.ms)}s</div></div>`).join('');
 }
-function clearAll() { results = []; raceN = 0; renderList(); }
+function clearAll() { results=[]; raceN=0; renderList(); }
 
-// ═══════════════════════════════════════════════════════
-// CONNECTION UI
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════
+// CONN UI
+// ═══════════════════════════════════════
 function setConn(ok, txt) {
-  ['rdot', 'dot-ws'].forEach(id => {
-    const d = document.getElementById(id);
-    if (d) d.className = 'dot ' + (ok ? 'on' : 'wait');
-  });
-  ['rctxt', 'txt-ws'].forEach(id => {
-    const t = document.getElementById(id);
-    if (t) { t.textContent = txt; t.style.color = ok ? '#00ff88' : '#ffaa00'; }
-  });
+  ['rdot','dot-ws'].forEach(id=>{ const d=document.getElementById(id); if(d) d.className='dot '+(ok?'on':'wait'); });
+  ['rctxt','txt-ws'].forEach(id=>{ const t=document.getElementById(id); if(t){ t.textContent=txt; t.style.color=ok?'#00ff88':'#ffaa00'; } });
 }
 
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════
 // LOG
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════
 function log(msg, box) {
-  const el = document.getElementById(box || 'log-race');
-  if (!el) return;
-  const d = document.createElement('div');
-  d.className = 'll n';
-  d.textContent = new Date().toLocaleTimeString() + ': ' + msg;
+  const el = document.getElementById(box||'log-race'); if (!el) return;
+  const d = document.createElement('div'); d.className='ll n';
+  d.textContent = new Date().toLocaleTimeString()+': '+msg;
   el.insertBefore(d, el.firstChild);
-  el.querySelectorAll('.ll.n').forEach((l, i) => { if (i > 0) l.classList.remove('n'); });
+  el.querySelectorAll('.ll.n').forEach((l,i)=>{ if(i>0) l.classList.remove('n'); });
   while (el.children.length > 12) el.removeChild(el.lastChild);
 }
 
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════
 // ACTIONS
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════
 function go(r) {
-  role = r;
-  try { ac(); } catch (e) {} // unlock audio on first tap
+  role = r; try { ac(); } catch(e) {}
   if (r === 'start') {
-    code = Math.random().toString(36).substr(2, 6).toUpperCase();
+    code = Math.random().toString(36).substr(2,6).toUpperCase();
     document.getElementById('codebox').textContent = code;
-    show('s-ws');
-    log('🟢 Code: ' + code, 'log-ws');
-    connectChannel(code, () => {
+    show('s-ws'); log('🟢 Code: '+code, 'log-ws');
+    joinChannel(code, () => {
       log('📡 Waiting for finish phone...', 'log-ws');
+      // Keep sending HELLO every 3s until other phone responds
+      let helloInt = setInterval(() => {
+        if (status === 'ready') { clearInterval(helloInt); return; }
+        send('HELLO');
+      }, 3000);
     });
   } else {
     show('s-wf');
@@ -591,56 +549,48 @@ function go(r) {
 }
 
 function startReady() {
-  setupUI('start');
-  startCam();
-  startGPS();
-  setStatus('ready');
+  setupUI('start'); startCam(); startGPS(); setStatus('ready');
 }
 
 function finishJoin() {
   code = document.getElementById('codein').value.trim().toUpperCase();
   if (code.length < 4) { alert('Enter the code from the start phone'); return; }
-  log('🔗 Joining session ' + code, 'log-wf');
-  connectChannel(code, () => {
-    setupUI('finish');
-    startCam();
-    startGPS();
-    setStatus('ready');
-    // Say hello to start phone
-    setTimeout(() => send('HELLO'), 500);
+  log('🔗 Joining '+code, 'log-wf');
+  joinChannel(code, () => {
+    setupUI('finish'); startCam(); startGPS(); setStatus('ready');
+    // Send HELLO repeatedly until start phone responds
+    let helloInt = setInterval(() => {
+      if (status !== 'idle') { clearInterval(helloInt); }
+      send('HELLO');
+    }, 1500);
   });
 }
 
 function setupUI(r) {
   show('s-race');
-  const s = r === 'start';
-  document.getElementById('rbadge').textContent = s ? '🟢 START' : '🏁 FINISH';
-  document.getElementById('rbadge').className = 'badge ' + (s ? 'bg' : 'bb');
-  document.getElementById('clabel').textContent = s ? '🟢 START' : '🏁 FINISH';
-  document.getElementById('rsess').textContent = 'SESSION: ' + code;
+  const s = r==='start';
+  document.getElementById('rbadge').textContent = s?'🟢 START':'🏁 FINISH';
+  document.getElementById('rbadge').className = 'badge '+(s?'bg':'bb');
+  document.getElementById('clabel').textContent = s?'🟢 START':'🏁 FINISH';
+  document.getElementById('rsess').textContent = 'SESSION: '+code;
 }
 
 function arm() {
   armed = true;
   document.getElementById('armedlbl').style.display = 'block';
   document.getElementById('btnArm').style.display = 'none';
-  sndArm();
-  log('🎯 ARMED — watching for falcon...');
-  log('📐 Point phone SIDEWAYS so falcon crosses the frame');
+  sndArm(); log('🎯 ARMED — watching for falcon...');
 }
 
 function doReset() {
-  armed = false; t0 = null; prevFrame = null;
-  stopTimer();
-  document.getElementById('armedlbl').style.display = 'none';
-  setStatus('ready');
-  log('🔄 Ready for next race');
+  armed=false; t0=null; prevFrame=null; stopTimer();
+  document.getElementById('armedlbl').style.display='none';
+  setStatus('ready'); log('🔄 Ready for next race');
 }
-
 function resetRace() { doReset(); send('RESET'); }
 
 function show(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
 }
 </script>
